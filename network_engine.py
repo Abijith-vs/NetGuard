@@ -16,6 +16,8 @@ class SnifferThread(threading.Thread):
         self.ip_timestamps = defaultdict(list)
         self.lock = threading.Lock()
         self.detector = None # To be injected by main.py
+        self.detector = None 
+        self.logic_engine = None
 
     def calculate_features(self, packet):
         """
@@ -79,11 +81,25 @@ class SnifferThread(threading.Thread):
         try:
             features = self.calculate_features(packet)
             if features:
-                # Perform prediction if detector is available
+                # 1. ML CHECK (Existing)
                 if self.detector:
                     anomaly_score = self.detector.predict(features)
                     features['anomaly'] = anomaly_score
                 
+                # 2. RULE CHECK (--- ADD THIS BLOCK ---)
+                if self.logic_engine:
+                    # We pass a simple dict to your engine
+                    # Your engine expects: {'src': IP, 'dst_port': PORT}
+                    simple_data = {
+                        'src': features['src_ip'],
+                        'dst_port': features['dst_port']
+                    }
+                    alert_msg = self.logic_engine.check_packet(simple_data)
+                    
+                    if alert_msg:
+                        features['rule_alert'] = alert_msg  # Save alert to features
+                # -------------------------------------
+
                 self.data_queue.put(features)
         except Exception as e:
             print(f"Error processing packet: {e}")
