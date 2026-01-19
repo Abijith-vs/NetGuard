@@ -1,0 +1,8 @@
+customtkinter
+scapy
+pandas
+numpy
+scikit-learn
+joblib
+psutil
+matplotlib
