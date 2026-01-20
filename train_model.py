@@ -4,7 +4,8 @@ from sklearn.ensemble import IsolationForest
 
 # --- CONFIGURATION ---
 # We point to where your dataset is stored
-dataset_path = "nsl-kdd/KDDTrain+.txt" 
+dataset_path = "nsl-kdd/KDDTrain+.txt"
+dataset_path="nsl-kdd/KDDTrain+_20Percent.txt" 
 model_filename = "model.pkl"
 
 print("1. Loading dataset...")
