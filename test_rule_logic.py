@@ -19,7 +19,8 @@ def test_logic():
              triggered = True
              break
     
-    if triggers_expected := True:
+    triggers_expected = True
+    if triggers_expected:
         if triggered: print("   -> PASS: Flood detected.")
         else: print("   -> FAIL: Flood NOT detected.")
 

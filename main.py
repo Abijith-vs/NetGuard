@@ -31,7 +31,13 @@ def main():
     detector = AnomalyDetector() if AnomalyDetector else None
     
     # --- UPDATE 2: INITIALIZE YOUR ENGINE ---
-    logic_engine = LogicEngine() if LogicEngine else None
+    # Increased thresholds to prevent false positives on normal traffic
+    # Adjust these values based on your network's baseline (use diagnose_traffic.py)
+    logic_engine = LogicEngine(
+        flood_threshold=3000,  # Increased from 1500 (pkts/sec per IP)
+        scan_threshold=25,     # Increased from 15 (unique ports)
+        window_size=2.0        # Increased from 1.0 (seconds)
+    ) if LogicEngine else None
     
     # Initialize Sniffer
     print("Initializing Network Sniffer...")

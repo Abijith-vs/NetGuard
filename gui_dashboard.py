@@ -287,8 +287,9 @@ class NetGuardDashboard(ctk.CTk):
             # 2. Process Packet Queue
             packets_this_tick = 0
             max_threat = 0.0
+            MAX_PACKETS_PER_TICK = 50 # Prevent GUI Freeze
             
-            while not self.log_queue.empty():
+            while not self.log_queue.empty() and packets_this_tick < MAX_PACKETS_PER_TICK:
                 try:
                     data = self.log_queue.get_nowait()
                     packets_this_tick += 1
@@ -301,8 +302,11 @@ class NetGuardDashboard(ctk.CTk):
                     
                     # --- DETECTION LOGIC START ---
                     
-                    # A. Check ML Result (The new string-based prediction)
-                    ml_status = data.get('anomaly', 'Normal') 
+                    # A. Check ML Result (Hybrid: Anomaly + Attack Type)
+                    is_anomaly = data.get('is_anomaly', False)
+                    attack_type = data.get('attack_type', 'Normal')
+                    ml_confidence = data.get('ml_confidence', 'low')
+                    ml_status = data.get('anomaly', 'Normal')  # Backward compatibility
                     
                     # B. Check Rule Alert
                     rule_msg = data.get('rule_alert')
@@ -310,11 +314,25 @@ class NetGuardDashboard(ctk.CTk):
                     is_attack = False
                     alert_msgs = []
 
-                    # 1. Handle ML Alerts (e.g. "DoS", "Probe")
-                    # We check if it is NOT "Normal" and NOT just the number 1 (legacy support)
-                    if ml_status != "Normal" and ml_status != 1: 
+                    # 1. Handle ML Alerts (Hybrid System) - FIX: Only alert on high/medium confidence
+                    # FIX: Filter out low-confidence predictions to reduce false positives
+                    if (is_anomaly or (attack_type != 'Normal')) and ml_confidence != 'low':
                         is_attack = True
-                        alert_msgs.append(f"[ML] {ml_status} DETECTED: {data.get('src_ip')}")
+                        # Format alert with attack type and confidence
+                        if attack_type == 'Unknown':
+                            # Only alert on medium+ confidence for unknown attacks
+                            if ml_confidence in ['high', 'medium']:
+                                alert_msgs.append(f"[ML-ANOMALY] Unknown Attack Detected: {data.get('src_ip')} (Novel/Zero-day, Confidence: {ml_confidence})")
+                        else:
+                            # Known attack types - alert on high/medium confidence
+                            if ml_confidence in ['high', 'medium']:
+                                alert_msgs.append(f"[ML-{attack_type}] {attack_type} Attack Detected: {data.get('src_ip')} (Confidence: {ml_confidence})")
+                    # Legacy support for old format
+                    elif ml_status == "Anomaly" or (isinstance(ml_status, int) and ml_status == -1):
+                        # Legacy format - be conservative, only alert if we have rule confirmation
+                        if rule_msg:  # Only alert if rules also detected something
+                            is_attack = True
+                            alert_msgs.append(f"[ML] {ml_status} DETECTED: {data.get('src_ip')}")
 
                     # 2. Handle Rule Alerts
                     if rule_msg:
