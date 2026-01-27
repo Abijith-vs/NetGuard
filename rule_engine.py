@@ -92,8 +92,9 @@ class LogicEngine:
             
             # Count unique ports accessed by this IP in the time window
             # FIX: Only count non-whitelisted ports for scan detection
+            # ALSO FIX: Ignore ephemeral ports (49152-65535) used by OS for outgoing connections
             non_whitelisted_ports = {p for p in self.port_scan_timestamps[src_ip].keys() 
-                                     if p not in self.whitelist_ports}
+                                     if p not in self.whitelist_ports and not (49152 <= p <= 65535)}
             unique_ports = len(non_whitelisted_ports)
             
             if unique_ports > self.SCAN_THRESHOLD:

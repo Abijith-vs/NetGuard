@@ -1,7 +1,7 @@
 import time
 import random
 import socket
-from scapy.all import IP, TCP, send, get_if_addr, conf, get_if_list
+from scapy.all import IP, TCP, send, get_if_addr, conf, get_if_list, Ether, sendp, getmacbyip, srp, ARP
 
 def get_local_ip():
     """Get the local IP address"""
@@ -27,128 +27,124 @@ def get_sniffing_interface():
             return ifaces[0]
         return None
 
+def resolve_gateway_mac(target_ip):
+    """
+    Resolve the MAC address of the next hop (Gateway) for a given target IP.
+    """
+    try:
+        # Ask Scapy's routing table who is the next hop
+        # returns: (iface, output_ip, gateway_ip)
+        route = conf.route.route(target_ip)
+        iface = route[0]
+        gw_ip = route[2]
+        
+        if gw_ip == "0.0.0.0": # Local link
+            gw_ip = target_ip
+            
+        print(f"    [debug] Route to {target_ip} via {gw_ip} on {iface}")
+        
+        # Try to resolve MAC
+        mac = getmacbyip(gw_ip)
+        if mac and mac != "ff:ff:ff:ff:ff:ff":
+            return mac, iface
+            
+        # If Scapy failed, try manual ARP
+        print(f"    [debug] Scapy failed to resolve MAC for {gw_ip}. Retrying with ARP...")
+        try:
+            ans, unans = srp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst=gw_ip), timeout=2, iface=iface, verbose=0)
+            if ans:
+                return ans[0][1].hwsrc, iface
+        except Exception as e:
+            print(f"    [debug] ARP failed: {e}")
+            
+        return None, iface
+    except Exception as e:
+        print(f"    [debug] Route resolution failed: {e}")
+        return None, None
+
 def simulate_port_scan(target_ip=None, count=20, src_ip=None):
-    """
-    Simulate a port scan attack that will be detected by NetGuard.
-    
-    Args:
-        target_ip: Target IP address (defaults to local IP)
-        count: Number of packets to send (default 20, should trigger port scan alert at 15)
-        src_ip: Source IP to use (defaults to local IP)
-    """
-    if target_ip is None:
-        target_ip = get_local_ip()
-    if src_ip is None:
-        src_ip = get_local_ip()
+    if target_ip is None: target_ip = "8.8.8.8"
+    if src_ip is None: src_ip = get_local_ip() # Use Real IP for reliability
     
     print(f"[*] Starting SYN Port Scan Simulation...")
     print(f"    Source IP: {src_ip}")
     print(f"    Target IP: {target_ip}")
-    print(f"    Packets: {count} (Threshold: 15 unique ports)")
     
-    # Use a fake external IP for better testing (simulates external attacker)
-    # This helps test the detection logic more realistically
-    fake_src_ip = "192.168.66.6"  # Fake attacker IP
-    
-    # Get the interface that NetGuard is likely using
-    sniff_iface = get_sniffing_interface()
-    if sniff_iface:
-        print(f"    Using interface: {sniff_iface}")
+    # Resolve Gateway MAC
+    gw_mac, iface = resolve_gateway_mac(target_ip)
     
     ports_sent = []
     for i in range(count):
         dst_port = random.randint(1024, 65535)
         ports_sent.append(dst_port)
         
-        # Craft a TCP SYN packet with explicit source IP
-        # Using fake_src_ip so it's detected as an external attacker
-        pkt = IP(src=fake_src_ip, dst=target_ip)/TCP(sport=random.randint(49152, 65535), dport=dst_port, flags="S")
-        
-        # Try to send on the sniffing interface first, then fallback
-        sent = False
-        if sniff_iface:
+        # Build Packet
+        if gw_mac:
+            # Golden Path: Layer 2 Unicast to Gateway
+            pkt = Ether(dst=gw_mac)/IP(src=src_ip, dst=target_ip)/TCP(sport=random.randint(49152, 65535), dport=dst_port, flags="S")
             try:
-                send(pkt, verbose=0, iface=sniff_iface)
-                sent = True
+                if iface:
+                    sendp(pkt, iface=iface, verbose=0)
+                else:
+                    sendp(pkt, verbose=0)
+            except Exception as e:
+                if i == 0: print(f"    [!] L2 Send failed, switching to L3: {e}")
+                start_l3_fallback = True
+        else:
+            # Fallback: Layer 3 (Let Scapy/OS handle routing)
+            # This might cause "MAC not found" warnings but is better than L2 Broadcast
+            if i == 0: print(f"    [!] Gateway MAC unknown. Using Layer 3 fallback (may show warnings)...")
+            pkt = IP(src=src_ip, dst=target_ip)/TCP(sport=random.randint(49152, 65535), dport=dst_port, flags="S")
+            try:
+                send(pkt, verbose=0)
             except:
                 pass
         
-        if not sent:
-            try:
-                # Try default interface
-                send(pkt, verbose=0, iface=conf.iface)
-            except:
-                try:
-                    # Last resort: send without interface
-                    send(pkt, verbose=0)
-                except Exception as e:
-                    if i == 0:  # Only print error on first packet
-                        print(f"    Warning: Could not send packets: {e}")
-                        print(f"    Make sure you have admin privileges and NetGuard is running!")
-        
-        # Small delay to spread packets over time (allows sniffer to capture)
         time.sleep(0.05)
         
-    print(f"[+] Scan Complete. Sent {count} packets to {len(set(ports_sent))} unique ports.")
-    print(f"    Unique ports: {len(set(ports_sent))}")
-    print("    Check your NetGuard dashboard for 'PORT SCAN' alerts.")
-    print("    Note: Make sure NetGuard is running and sniffing before running this script!")
+    print(f"[+] Scan Complete. Sent {count} packets.")
+    print("    Check NetGuard dashboard.")
 
-def simulate_flood_attack(target_ip=None, count=1600, src_ip=None):
-    """
-    Simulate a flood attack (DDoS).
-    
-    Args:
-        target_ip: Target IP address (defaults to local IP)
-        count: Number of packets to send (default 1600, should trigger flood alert at 1500)
-        src_ip: Source IP to use (defaults to fake attacker IP)
-    """
-    if target_ip is None:
-        target_ip = get_local_ip()
-    if src_ip is None:
-        src_ip = "192.168.66.6"  # Fake attacker IP
+def simulate_flood_attack(target_ip=None, count=3000, src_ip=None):
+    if target_ip is None: target_ip = "8.8.8.8"
+    if src_ip is None: src_ip = "192.168.66.6" 
     
     print(f"[*] Starting Flood Attack Simulation...")
-    print(f"    Source IP: {src_ip}")
     print(f"    Target IP: {target_ip}")
-    print(f"    Packets: {count} (Threshold: 1500 pkts/sec)")
     
-    # Get the interface that NetGuard is likely using
-    sniff_iface = get_sniffing_interface()
+    gw_mac, iface = resolve_gateway_mac(target_ip)
+    
+    if gw_mac:
+        # Pre-build L2 packet
+        base_pkt = Ether(dst=gw_mac)/IP(src=src_ip, dst=target_ip)/TCP(dport=80, flags="S")
+    else:
+        # Pre-build L3 packet
+        print(f"    [!] Gateway MAC unknown. Using Layer 3 fallback...")
+        base_pkt = IP(src=src_ip, dst=target_ip)/TCP(dport=80, flags="S")
     
     for i in range(count):
-        pkt = IP(src=src_ip, dst=target_ip)/TCP(sport=random.randint(49152, 65535), dport=80, flags="S")
+        pkt = base_pkt
+        pkt[TCP].sport = random.randint(1024, 65535)
         
-        # Try to send on the sniffing interface first
-        sent = False
-        if sniff_iface:
-            try:
-                send(pkt, verbose=0, iface=sniff_iface)
-                sent = True
-            except:
-                pass
-        
-        if not sent:
-            try:
-                send(pkt, verbose=0, iface=conf.iface)
-            except:
-                try:
-                    send(pkt, verbose=0)
-                except:
-                    pass
-        
-        # Send packets quickly to simulate flood (but with tiny delay for capture)
-        if i % 100 == 0:
+        try:
+            if gw_mac:
+                if iface: sendp(pkt, iface=iface, verbose=0)
+                else: sendp(pkt, verbose=0)
+            else:
+                send(pkt, verbose=0)
+        except:
+             pass
+             
+        if i % 500 == 0:
             print(f"    Sent {i}/{count} packets...")
-        time.sleep(0.001)  # Tiny delay to allow capture
-    
-    print(f"[+] Flood Complete. Sent {count} packets.")
-    print("    Check your NetGuard dashboard for 'FLOOD DETECTED' alerts.")
+            
+    print(f"[+] Flood Complete.")
+    print("    Check NetGuard dashboard.")
 
 if __name__ == "__main__":
     print("--- NetGuard Attack Simulator ---")
     print("1. Port Scan Simulation (20 packets)")
-    print("2. Flood Attack Simulation (1600 packets)")
+    print("2. Flood Attack Simulation (3000 packets)")
     
     local_ip = get_local_ip()
     print(f"\nDetected Local IP: {local_ip}")
@@ -158,9 +154,13 @@ if __name__ == "__main__":
     if not choice:
         choice = "1"
     
-    target = input(f"Enter Target IP (default={local_ip}): ").strip()
+    # FIX: Default to external IP (8.8.8.8) instead of Local IP
+    # Windows loopback traffic is often not captured by Scapy on physical adapters.
+    # Sending to an external IP ensures packets hit the wire and are seen by the sniffer.
+    print(f"Suggestion: Use '8.8.8.8' (Google DNS) as target to ensure packets are captured.")
+    target = input(f"Enter Target IP (default=8.8.8.8): ").strip()
     if not target:
-        target = local_ip
+        target = "8.8.8.8"
     
     if choice == "2":
         simulate_flood_attack(target)

@@ -70,4 +70,4 @@ clf.fit(X, y)
 # --- 6. SAVE ---
 print(f"4. Saving model to {model_filename}...")
 joblib.dump(clf, model_filename, compress=3)
-print("✅ SUCCESS! You can now run 'main.py'.")
+print("SUCCESS! You can now run 'main.py'.")
