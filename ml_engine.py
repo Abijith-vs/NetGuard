@@ -21,24 +21,24 @@ class AnomalyDetector:
         if os.path.exists(self.anomaly_model_path):
             try:
                 self.anomaly_model = joblib.load(self.anomaly_model_path)
-                print(f"✅ Anomaly model loaded: {self.anomaly_model_path}")
+                print(f"[+] Anomaly model loaded: {self.anomaly_model_path}")
             except Exception as e:
-                print(f"❌ Failed to load anomaly model: {e}")
+                print(f"[-] Failed to load anomaly model: {e}")
         else:
-            print(f"⚠️  Anomaly model {self.anomaly_model_path} not found.")
+            print(f"[!] Anomaly model {self.anomaly_model_path} not found.")
         
         # Load Random Forest (attack classification)
         if os.path.exists(self.attack_model_path):
             try:
                 self.attack_model = joblib.load(self.attack_model_path)
-                print(f"✅ Attack classification model loaded: {self.attack_model_path}")
+                print(f"[+] Attack classification model loaded: {self.attack_model_path}")
             except Exception as e:
-                print(f"❌ Failed to load attack model: {e}")
+                print(f"[-] Failed to load attack model: {e}")
         else:
-            print(f"⚠️  Attack model {self.attack_model_path} not found.")
+            print(f"[!] Attack model {self.attack_model_path} not found.")
         
         if not self.anomaly_model and not self.attack_model:
-            print("⚠️  WARNING: No ML models loaded! ML detection will be disabled.")
+            print("[!] WARNING: No ML models loaded! ML detection will be disabled.")
 
     def predict(self, features_dict):
         """
@@ -155,15 +155,17 @@ class AnomalyDetector:
                 }
         else:
             # Random Forest says attack, but Isolation Forest says normal
-            # FIX: Require high probability to trust Random Forest alone
-            if attack_probability > 0.8:
+            # Random Forest says attack, but Isolation Forest says normal
+            # FIX: Trust Isolation Forest (Anomaly Detector) for 'Probe' and 'Other' to avoid false positives.
+            # We ONLY allow 'DoS' to override if probability is extremely high, as DoS patterns can sometimes look 'normal' structurally.
+            if attack_type == 'DoS' and attack_probability > 0.98:
                 return {
-                    'is_anomaly': True,
+                    'is_anomaly': True, # Upgrade to anomaly based on strong classifier confidence
                     'attack_type': attack_type,
                     'confidence': 'medium'
                 }
             else:
-                # Low probability - likely false positive
+                # For 'Probe', 'Other', or weak 'DoS', trust the Anomaly Detector (It says Normal, so we say Normal)
                 return {
                     'is_anomaly': False,
                     'attack_type': 'Normal',

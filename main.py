@@ -34,7 +34,7 @@ def main():
     # Increased thresholds to prevent false positives on normal traffic
     # Adjust these values based on your network's baseline (use diagnose_traffic.py)
     logic_engine = LogicEngine(
-        flood_threshold=3000,  # Increased from 1500 (pkts/sec per IP)
+        flood_threshold=2000,  # Lowered from 3000 to ensure simulation triggers it (while 1600 < 2000, simulator will be boosted)
         scan_threshold=25,     # Increased from 15 (unique ports)
         window_size=2.0        # Increased from 1.0 (seconds)
     ) if LogicEngine else None
