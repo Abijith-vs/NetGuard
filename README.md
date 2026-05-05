@@ -1,4 +1,36 @@
-# **NetGuard: Real-Time Network Anomaly Detection System using Machine Learning**
+<h1 align="center">NETGUARD</h1>
+
+<p align="center">
+  <b> Real-Time Network Anomaly Detection System using Machine Learning</b>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.x-blue?logo=python" />
+  <img src="https://img.shields.io/badge/CustomTkinter-GUI-purple" />
+  <img src="https://img.shields.io/badge/Scapy-Networking-green" />
+  <img src="https://img.shields.io/badge/Random%20Forest-ML-orange" />
+  <img src="https://img.shields.io/badge/Isolation%20Forest-Anomaly-red" />
+  <img src="https://img.shields.io/badge/License-MIT-lightgrey" />
+</p>
+
+<p align="center">
+  Detect. Analyze. Protect.
+</p>
+
+<p align="center">
+  <a href="#Key Features">Key Features</a> •
+  <a href="#Tech Stack">Tech Stack</a> •
+  <a href="#System Architecture & Flow">Architecture</a> •
+  <a href="#Exected Performancne">Performance</a> •
+  <a href="#Project Structure">Structure</a> •
+  <a href="#Installation & Setup">Installation</a> •
+  <a href="#Usage Guide">Usage Guide</a> •
+  <a href="#System Verification and Testing">Testing</a> •
+  <a href="#Training & Evaluating Models">Models</a> •
+  <a href="#Screenshots">screenshot</a>
+</p>
+
+---
 
 
 
@@ -50,7 +82,7 @@ Anomaly Scoring: The Isolation Forest model calculates the "path length" for eac
 
 Alerting: The GUI triggers a visual red alert when the anomaly score or statistical threshold is breached.
 
-## 📊 **Expected Performance**
+## 📊 **Exected Performancne**
 Accuracy: Projected between 90.0% and 95.6% based on NSL-KDD benchmarks for Isolation Forest.
 
 Efficiency: Designed to be lightweight
