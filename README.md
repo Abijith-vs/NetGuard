@@ -56,14 +56,7 @@ Accuracy: Projected between 90.0% and 95.6% based on NSL-KDD benchmarks for Isol
 Efficiency: Designed to be lightweight
  with real-time monitoring of CPU and RAM usage to ensure minimal system overhead.
 
-##  **Screenshots**
 
-
-<img width="548" height="245" alt="netguard1image" src="https://github.com/user-attachments/assets/2c14957e-e77b-49ef-bb2b-1c48517007b1" />
-
-<img width="548" height="245" alt="netguard image 3" src="https://github.com/user-attachments/assets/b29b4ebb-628e-4ee2-bbb0-7d7f57d18254" />
-
-<img width="548" height="245" alt="netguardimage2" src="https://github.com/user-attachments/assets/416d4b95-740a-4941-a911-7987798ad535" />
 
 # 🛡️ NetGuard: Real-Time Network Anomaly Detection System
 
@@ -292,3 +285,14 @@ A modern, dark-themed dashboard built with `CustomTkinter`. It constantly polls 
 - **SECURE** (Green): Normal, benign traffic.
 - **MODERATE** (Yellow): Low-volume anomalies or slow port scans.
 - **CRITICAL** (Red): Volumetric floods, active DoS attacks, or high-confidence malicious signatures.
+
+---
+
+##  **Screenshots**
+
+
+<img width="548" height="245" alt="netguard1image" src="https://github.com/user-attachments/assets/2c14957e-e77b-49ef-bb2b-1c48517007b1" />
+
+<img width="548" height="245" alt="netguard image 3" src="https://github.com/user-attachments/assets/b29b4ebb-628e-4ee2-bbb0-7d7f57d18254" />
+
+<img width="548" height="245" alt="netguardimage2" src="https://github.com/user-attachments/assets/416d4b95-740a-4941-a911-7987798ad535" />
