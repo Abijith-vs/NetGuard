@@ -165,7 +165,7 @@ NetGuard/
 
 **1. Clone the repository and navigate to the project directory:**
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/Abijith-vs/NetGuard.git
 cd NetGuard
 ```
 
